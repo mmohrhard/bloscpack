@@ -18,6 +18,7 @@ from .defaults import (DEFAULT_TYPESIZE,
                        DEFAULT_CHUNK_SIZE,
                        DEFAULT_CHECKSUM,
                        DEFAULT_MAX_APP_CHUNKS,
+                       DEFAULT_THREADING,
                        DEFAULT_OFFSETS,
                        DEFAULT_MAGIC_FORMAT,
                        DEFAULT_META_CHECKSUM,
@@ -38,10 +39,10 @@ from .pretty import (double_pretty_size,
 from . import log
 
 # Bloscpack args
-BLOSCPACK_ARGS = ('offsets', 'checksum', 'max_app_chunks')
+BLOSCPACK_ARGS = ('offsets', 'checksum', 'max_app_chunks', 'threading')
 _BLOSCPACK_ARGS_SET = set(BLOSCPACK_ARGS)  # cached
 DEFAULT_BLOSCPACK_ARGS = dict(zip(BLOSCPACK_ARGS,
-    (DEFAULT_OFFSETS, DEFAULT_CHECKSUM, DEFAULT_MAX_APP_CHUNKS)))
+    (DEFAULT_OFFSETS, DEFAULT_CHECKSUM, DEFAULT_MAX_APP_CHUNKS, DEFAULT_THREADING)))
 
 
 # Blosc args
@@ -345,20 +346,25 @@ class BloscpackArgs(MutableMappingObject):
         Name of the checksum to use or None/'None'
     max_app_chunks : int or callable on number of chunks
         How much space to reserve in the offsets for chunks to be appended.
+    threading : boolean
+        Whether to submit chunks in a thread pool
 
     """
     def __init__(self,
                  offsets=DEFAULT_OFFSETS,
                  checksum=DEFAULT_CHECKSUM,
-                 max_app_chunks=DEFAULT_MAX_APP_CHUNKS):
+                 max_app_chunks=DEFAULT_MAX_APP_CHUNKS,
+                 threading=DEFAULT_THREADING):
         self.offsets = offsets
         # Special hack, accept Pythonic None as 'None'.
         self.checksum = 'None' if checksum is None else checksum
         self.max_app_chunks = max_app_chunks
+        self.threading = threading
 
         self._attrs = ['offsets',
                        'checksum',
                        'max_app_chunks',
+                       'threading',
                        ]
 
     @property

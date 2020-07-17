@@ -4,6 +4,7 @@
 
 
 import abc
+import threading
 
 
 import blosc
@@ -151,18 +152,39 @@ def pack(source, sink,
         sink.write_metadata(metadata, metadata_args)
     sink.init_offsets()
 
+    use_threading = bloscpack_args.threading
+    if use_threading:
+        import concurrent.futures
+
+        thread_pool = concurrent.futures.ThreadPoolExecutor()
+        futures = []
+
+    lock = threading.Lock()
     compress_func = source.compress_func
     # read-compress-write loop
     for i, chunk in enumerate(source):
         if log.LEVEL == log.DEBUG:
             log.debug("Handle chunk '%d'%s" %
                     (i, ' (last)' if i == nchunks - 1 else ''))
-        compressed = compress_func(chunk, blosc_args)
-        sink.put(i, compressed)
-        if log.LEVEL == log.DEBUG:
-            log.debug("chunk handled, in: %s out: %s" %
-                    (double_pretty_size(len(chunk)),
-                    double_pretty_size(len(compressed))))
+
+        def compress():
+            compressed = compress_func(chunk, blosc_args)
+            with lock:
+                sink.put(i, compressed)
+
+            if log.LEVEL == log.DEBUG:
+                log.debug("chunk handled, in: %s out: %s" %
+                        (double_pretty_size(len(chunk)),
+                        double_pretty_size(len(compressed))))
+
+        if use_threading:
+            futures.append(thread_pool.submit(compress))
+        else:
+            compress()
+
+    if use_threading:
+        concurrent.futures.wait(futures)
+
     sink.finalize()
 
 
